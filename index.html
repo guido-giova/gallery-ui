@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Local Media Gallery</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/main.js" defer></script>
+</head>
+<body>
+<main id="main">
+    <nav id="nav" aria-label="Gallery views">
+        <button type="button" class="is-active" aria-pressed="true">Timeline</button>
+        <button type="button" aria-pressed="false">All</button>
+    </nav>
+
+    <div id="content">
+        <section id="main-section">
+            <header id="header">
+                <h1>Gallery</h1>
+
+                <div class="field field--search">
+                    <label for="search">Search</label>
+                    <input type="text" id="search" name="search" placeholder="Search by filename…" autocomplete="off">
+                </div>
+
+                <div class="field">
+                    <label for="amount-per-row">Per row</label>
+                    <input type="range" id="amount-per-row" name="amount-per-row" min="5" max="20" value="7">
+                    <output id="amount-per-row-value" class="range-value" for="amount-per-row">7</output>
+                </div>
+
+                <input type="file" id="file-input" multiple accept="image/*, video/*">
+                <label for="file-input" class="button btn-primary">Upload</label>
+                <button type="button" id="filters-button">Filters</button>
+                <button type="button" id="reload-button">Reload</button>
+            </header>
+        </section>
+
+        <section id="gallery-container">
+            <div id="drop-zone" aria-hidden="true"><span>Drop to upload</span></div>
+            <section id="gallery" aria-label="Media"></section>
+        </section>
+    </div>
+</main>
+
+<dialog id="media-dialog" aria-label="Media viewer">
+    <div id="viewer">
+        <div id="viewer-content">
+            <div id="viewer-stage"></div>
+            <aside id="viewer-details">
+                <div id="viewer-controls">
+                    <button id="viewer-delete" class="viewer-control" type="button" aria-label="Delete">
+                        <span>Delete</span>
+                    </button>
+                    <button id="viewer-favorite" class="viewer-control" type="button" aria-label="Favorite" aria-pressed="false">
+                        <span>Favorite</span>
+                    </button>
+                    <button id="viewer-save" class="viewer-control" type="button" aria-label="Save">
+                        <span>Save</span>
+                    </button>
+                    <button id="viewer-close" class="viewer-close" type="button" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <dl id="viewer-data"></dl>
+            </aside>
+        </div>
+        <nav id="viewer-carousel" aria-label="Media carousel">
+            <button id="viewer-previous" class="carousel-control" type="button" aria-label="Previous">
+                <span aria-hidden="true">&lsaquo;</span>
+            </button>
+            <div id="viewer-thumbnails"></div>
+            <button id="viewer-next" class="carousel-control" type="button" aria-label="Next">
+                <span aria-hidden="true">&rsaquo;</span>
+            </button>
+        </nav>
+    </div>
+</dialog>
+
+</body>
+</html>
