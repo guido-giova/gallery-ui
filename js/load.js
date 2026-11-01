@@ -91,12 +91,24 @@ function renderViewer(item) {
     if (!item) { return; }
     selectedItem = item;
 
-    const media = document.createElement("img");
-    media.className = "viewer-media";
-    media.src = address(`/api/files/${item["id"]}/content`);
-    media.decoding = "async";
+    if (item["mime"].startsWith("video/")) {
+        const media = document.createElement("video");
+        media.className = "viewer-media";
+        media.src = address(`/api/files/${item["id"]}/content`);
+        media.controls = true;
+        media.preload = "metadata";
+        media.muted = false;
+        media.autoplay = false;
 
-    viewerStage.replaceChildren(media);
+        viewerStage.replaceChildren(media);
+    } else {
+        const media = document.createElement("img");
+        media.className = "viewer-media";
+        media.src = address(`/api/files/${item["id"]}/content`);
+        media.decoding = "async";
+
+        viewerStage.replaceChildren(media);
+    }
 }
 
 function closeViewer() {
