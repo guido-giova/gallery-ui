@@ -63,6 +63,7 @@ function makeCard(item) {
         preview.preload = "metadata";
         preview.muted = true;
         preview.autoplay = true;
+        preview.loop = true;
         card.append(preview);
         card.addEventListener("click", () => openViewer(item, preview));
     } else {
