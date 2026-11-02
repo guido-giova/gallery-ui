@@ -26,19 +26,15 @@ export async function loadImages() {
 
         const fragment = document.createDocumentFragment();
 
-        console.log(items);
-        items = (await response.json())
-            .map((item) => {
-                const result = [];
-                result["id"] = item.id;
-                result["isFavorite"] = item.isFavorite;
-                result["mime"] = item.mime;
+        items = await Promise.all((await response.json())
+            .map(async (item) => {
+                const result = { ...item };
 
-                const card = makeCard(result);
-                fragment.append(card);
-                result["card"] = card;
+                result.card = await makeCard(result);
+                fragment.append(result.card);
+
                 return result;
-            });
+            }));
 
         gallery.replaceChildren(fragment);
     } catch (error) {
@@ -46,18 +42,30 @@ export async function loadImages() {
     }
 }
 
-function makeCard(item) {
+async function makeCard(item) {
     const card = document.createElement("button");
     card.className = "media-card";
     card.type = "button";
-    if (item["isFavorite"]) {
+    if (item.isFavorite) {
         card.classList.add("is-favorite");
     }
 
-    if (item["mime"].startsWith("video/")) {
+    const response = await fetch(address(`/api/files/${item.id}`));
+    if (!response.ok) {
+        throw new Error(`Failed to load files for ${item.id}: ${response.status}`);
+    }
+
+    const files = await response.json();
+    item.variants = files;
+    const thumbnail = files.find(file => file.kind === "THUMBNAIL");
+    if (!thumbnail) {
+        throw new Error(`No thumbnail found for ${item.id}`);
+    }
+
+    if (thumbnail.mime.startsWith("video/")) {
         const preview = document.createElement("video");
         preview.className = "media-preview";
-        preview.src = address(`/api/files/${item["id"]}/content`);
+        preview.src = address(`/api/files/${thumbnail.id}/content`);
         preview.loading  = "lazy";
         preview.controls = false;
         preview.preload = "metadata";
@@ -69,12 +77,13 @@ function makeCard(item) {
     } else {
         const preview = document.createElement("img");
         preview.className = "media-preview";
-        preview.src = address(`/api/files/${item["id"]}/content`);
+        preview.src = address(`/api/files/${thumbnail.id}/content`);
         preview.loading  = "lazy";
         preview.decoding = "async";
         card.append(preview);
         card.addEventListener("click", () => openViewer(item, preview));
     }
+
     return card;
 }
 
@@ -89,12 +98,14 @@ function openViewer(item, opener) {
 
 function renderViewer(item) {
     if (!item) { return; }
-    selectedItem = item;
+    
+    const og = item.variants.find(file => file.kind === "ORIGINAL");
+    selectedItem = og;
 
-    if (item["mime"].startsWith("video/")) {
+    if (og.mime.startsWith("video/")) {
         const media = document.createElement("video");
         media.className = "viewer-media";
-        media.src = address(`/api/files/${item["id"]}/content`);
+        media.src = address(`/api/files/${og.id}/content`);
         media.controls = true;
         media.preload = "metadata";
         media.muted = false;
@@ -104,7 +115,7 @@ function renderViewer(item) {
     } else {
         const media = document.createElement("img");
         media.className = "viewer-media";
-        media.src = address(`/api/files/${item["id"]}/content`);
+        media.src = address(`/api/files/${og.id}/content`);
         media.decoding = "async";
 
         viewerStage.replaceChildren(media);
