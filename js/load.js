@@ -15,6 +15,8 @@ const viewerFavorite = document.getElementById("viewer-favorite");
 let items;
 let selectedItem = null;
 let viewerOpener = null;
+let previewObserver;
+const itemsByCard = new WeakMap();
 
 export async function loadImages() {
     try {
@@ -25,69 +27,242 @@ export async function loadImages() {
         }
 
         const fragment = document.createDocumentFragment();
+        items = (await response.json()).map(item => {
+            const result = { ...item };
+            result.card = makeShell(result);
+            fragment.append(result.card);
+            return result;
+        });
 
-        items = await Promise.all((await response.json())
-            .map(async (item) => {
-                const result = { ...item };
-
-                result.card = await makeCard(result);
-                fragment.append(result.card);
-
-                return result;
-            }));
-
+        previewObserver?.disconnect();
+        previewObserver = createPreviewObserver();
         gallery.replaceChildren(fragment);
+
+        if (previewObserver) {
+            items.forEach(item => previewObserver.observe(item.card));
+        }
+
+        if (!previewObserver) {
+            items.forEach(item => loadVisiblePreview(item));
+        }
     } catch (error) {
         console.error("Error loading images:", error);
     }
 }
 
-async function makeCard(item) {
+function createPreviewObserver() {
+    if (!("IntersectionObserver" in window)) {
+        return null;
+    }
+
+    return new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            const item = itemsByCard.get(entry.target);
+            if (!item) {
+                return;
+            }
+
+            item.isVisible = entry.isIntersecting;
+            if (item.isVisible) {
+                item.hasBeenVisible = true;
+                loadVisiblePreview(item);
+            } else if (item.variants && item.hasBeenVisible) {
+                updatePreview(item, item.isVisible);
+            }
+        });
+    });
+}
+
+function makeShell(item) {
     const card = document.createElement("button");
     card.className = "media-card";
     card.type = "button";
+    card.classList.add("is-unloaded");
+    itemsByCard.set(card, item);
     if (item.isFavorite) {
         card.classList.add("is-favorite");
     }
 
-    const response = await fetch(address(`/api/files/${item.id}`));
-    if (!response.ok) {
-        throw new Error(`Failed to load files for ${item.id}: ${response.status}`);
+    card.addEventListener("click", () => openViewer(item, card));
+
+    return card;
+}
+
+function loadingIcon() {
+    const icon = document.createElement("span");
+    icon.className = "loading-icon";
+    icon.setAttribute("aria-hidden", "true");
+    return icon;
+}
+
+function loadVariants(item) {
+    if (item.variants) {
+        return Promise.resolve(item.variants);
+    }
+    if (item.variantsPromise) {
+        return item.variantsPromise;
     }
 
-    const files = await response.json();
-    item.variants = files;
-    const thumbnail = files.find(file => file.kind === "THUMBNAIL");
-    if (!thumbnail) {
-        throw new Error(`No thumbnail found for ${item.id}`);
+    item.variantsPromise = (async () => {
+        const response = await fetch(address(`/api/files/${item.id}`));
+        if (!response.ok) {
+            throw new Error(`Failed to load files for ${item.id}: ${response.status}`);
+        }
+
+        const files = await response.json();
+        if (!Array.isArray(files)) {
+            throw new Error(`Invalid files response for ${item.id}`);
+        }
+
+        item.variants = files;
+        item.isVideo = files.some(file => file.mime.startsWith("video/"));
+        item.card.classList.toggle("is-video", item.isVideo);
+        return files;
+    })().catch(error => {
+        item.variantsPromise = null;
+        throw error;
+    });
+
+    return item.variantsPromise;
+}
+
+function getPreviewVariant(item, isVisible) {
+    const thumbnail = item.variants.find(file => file.kind === "THUMBNAIL");
+    const original = item.variants.find(file => file.kind === "ORIGINAL");
+    const isVideo = item.isVideo ?? ((original || thumbnail)?.mime.startsWith("video/") ?? false);
+
+    if (isVideo) {
+        if (!isVisible) {
+            return thumbnail && !thumbnail.mime.startsWith("video/") ? thumbnail : null;
+        }
+
+        return [thumbnail, original].find(file => file?.mime.startsWith("video/")) ?? null;
     }
 
-    if (thumbnail.mime.startsWith("video/")) {
-        const preview = document.createElement("video");
-        preview.className = "media-preview";
-        preview.src = address(`/api/files/${thumbnail.id}/content`);
-        preview.loading  = "lazy";
+    if (isVisible) {
+        return original && !original.mime.startsWith("video/") ? original : thumbnail;
+    }
+
+    return thumbnail && !thumbnail.mime.startsWith("video/") ? thumbnail : null;
+}
+
+function updatePreview(item, isVisible) {
+    const variant = getPreviewVariant(item, isVisible);
+    if (!variant) {
+        releasePreview(item);
+        item.card.replaceChildren();
+        item.card.classList.remove("is-loading", "is-error");
+        item.card.classList.add("is-unloaded");
+        return;
+    }
+
+    if (item.previewVariantId === variant.id) {
+        if (isVisible && item.previewElement instanceof HTMLVideoElement && item.previewElement.paused) {
+            item.previewElement.play().catch(error => {
+                console.warn(`Could not play preview for ${item.id}:`, error);
+            });
+        }
+        return;
+    }
+
+    releasePreview(item);
+    const source = address(`/api/files/${variant.id}/content`);
+    let preview;
+    item.card.classList.remove("is-unloaded", "is-error");
+    item.card.classList.add("is-loading");
+    item.card.replaceChildren(loadingIcon());
+    if (variant.mime.startsWith("video/")) {
+        preview = document.createElement("video");
         preview.controls = false;
         preview.preload = "metadata";
         preview.muted = true;
         preview.autoplay = true;
         preview.loop = true;
-        card.append(preview);
-        card.addEventListener("click", () => openViewer(item, preview));
+        preview.playsInline = true;
     } else {
-        const preview = document.createElement("img");
-        preview.className = "media-preview";
-        preview.src = address(`/api/files/${thumbnail.id}/content`);
-        preview.loading  = "lazy";
+        preview = document.createElement("img");
         preview.decoding = "async";
-        card.append(preview);
-        card.addEventListener("click", () => openViewer(item, preview));
+        preview.alt = "";
     }
 
-    return card;
+    preview.className = "media-preview";
+    item.previewElement = preview;
+    item.previewVariantId = variant.id;
+    item.card.append(preview);
+    item.card.classList.toggle("is-video", item.isVideo);
+    const readyEvent = preview instanceof HTMLVideoElement ? "loadeddata" : "load";
+    preview.addEventListener(readyEvent, () => {
+        if (item.previewElement === preview) {
+            item.card.classList.remove("is-loading");
+            item.card.querySelector(".loading-icon")?.remove();
+        }
+    }, { once: true });
+    preview.addEventListener("error", () => {
+        if (item.previewElement === preview) {
+            showPreviewError(item);
+        }
+    }, { once: true });
+    preview.src = source;
+
+    if (preview instanceof HTMLVideoElement) {
+        preview.play().catch(error => {
+            console.warn(`Could not play preview for ${item.id}:`, error);
+        });
+    }
 }
 
-function openViewer(item, opener) {
+async function loadVisiblePreview(item) {
+    item.card.classList.remove("is-unloaded", "is-error");
+    item.card.classList.add("is-loading");
+    if (!item.card.querySelector(".loading-icon")) {
+        item.card.prepend(loadingIcon());
+    }
+
+    try {
+        await loadVariants(item);
+        updatePreview(item, item.isVisible ?? true);
+    } catch (error) {
+        console.error(`Error loading files for ${item.id}:`, error);
+        showPreviewError(item);
+    }
+}
+
+function releasePreview(item) {
+    const preview = item.previewElement;
+    if (preview instanceof HTMLVideoElement) {
+        preview.pause();
+        preview.removeAttribute("src");
+        preview.load();
+    } else if (preview instanceof HTMLImageElement) {
+        preview.removeAttribute("src");
+    }
+    item.previewElement = null;
+    item.previewVariantId = null;
+}
+
+function showPreviewError(item) {
+    item.card.classList.remove("is-loading");
+    item.card.classList.add("is-error");
+    item.card.replaceChildren();
+    const message = document.createElement("span");
+    message.className = "preview-error";
+    message.textContent = "Preview unavailable";
+    item.card.append(message);
+    item.card.setAttribute("aria-label", `Preview unavailable for ${item.id}`);
+}
+
+async function openViewer(item, opener) {
+    try {
+        await loadVariants(item);
+        item.hasBeenVisible = true;
+        item.isVisible = true;
+        updatePreview(item, true);
+    } catch (error) {
+        console.error(`Error opening media ${item.id}:`, error);
+        showPreviewError(item);
+        return;
+    }
+
     if (!mediaDialog.open) {
         viewerOpener = opener;
         mediaDialog.showModal();
@@ -100,7 +275,11 @@ function renderViewer(item) {
     if (!item) { return; }
     
     const og = item.variants.find(file => file.kind === "ORIGINAL");
-    selectedItem = og;
+    if (!og) {
+        console.error(`No viewable media found for ${item.id}`);
+        return;
+    }
+    selectedItem = item;
 
     if (og.mime.startsWith("video/")) {
         const media = document.createElement("video");
@@ -126,6 +305,8 @@ function closeViewer() {
     if (mediaDialog.open) {
         mediaDialog.close();
         selectedItem = null;
+        viewerOpener?.focus();
+        viewerOpener = null;
     }
 }
 

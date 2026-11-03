@@ -439,7 +439,30 @@ input[type="range"]:hover::-webkit-slider-thumb {
 }
 
 .media-card.is-loading {
-    animation: pulse 1.2s ease-in-out infinite;
+    cursor: progress;
+}
+
+.loading-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: loading-spin 800ms linear infinite;
+    transform: translate(-50%, -50%);
+}
+
+.preview-error {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
 }
 
 .media-preview {
@@ -449,8 +472,8 @@ input[type="range"]:hover::-webkit-slider-thumb {
     object-fit: cover;
 }
 
-@keyframes pulse {
-    50% { opacity: 0.55; }
+@keyframes loading-spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* ---------- DROP ZONE ---------- */
