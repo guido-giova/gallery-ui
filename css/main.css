@@ -455,6 +455,19 @@ input[type="range"]:hover::-webkit-slider-thumb {
     transform: translate(-50%, -50%);
 }
 
+.review-indicator {
+    position: absolute;
+    top: 4px;
+    right: 7px;
+    z-index: 1;
+    color: #fff;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.8);
+    pointer-events: none;
+}
+
 .preview-error {
     position: absolute;
     inset: 0;
