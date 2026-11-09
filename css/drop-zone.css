@@ -1,0 +1,47 @@
+#drop-zone {
+    position: fixed;
+    inset: 0 0 0 var(--nav-width);
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity var(--ease), visibility var(--ease);
+}
+
+#drop-zone::before {
+    content: "";
+    position: absolute;
+    inset: 1rem;
+    border: 3px dashed var(--border);
+    border-radius: var(--radius-lg);
+    transition: border-color var(--ease), background var(--ease);
+}
+
+#drop-zone > span {
+    position: relative;
+    padding: 0.9rem 1.6rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    pointer-events: none;
+}
+
+body.is-dragging #drop-zone {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+#drop-zone.is-dragover::before {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
