@@ -18,26 +18,29 @@ export async function uploadFiles(files) {
 
     if (accepted.length === 0) { return; }
 
-    const formData = new FormData();
+    const uploads = [];
+
     for (const file of accepted) {
-        formData.append("files", file);
-    }
+        const formData = new FormData();
+        formData.append("file", file);
 
-    try {
-        const response = await fetch(address("/api/files/upload"), {
-            method: "POST",
-            body: formData,
-        });
+        try {
+            const response = await fetch(address("/api/files/upload"), {
+                method: "POST",
+                body: formData,
+            });
 
-        if (!response.ok) {
-            throw new Error(`Upload failed: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+
+            const result = await response.json();
+            uploads.push(result);
+            console.log("Upload successful:", result);
+        } catch (error) {
+            console.error(`Error uploading file ${file.name}:`, error);
         }
-
-        const results = await response.json();
-        console.log("Upload successful:", results);
-
-        return results;
-    } catch (error) {
-        console.error("Error uploading files:", error);
     }
+
+    return uploads;
 }
