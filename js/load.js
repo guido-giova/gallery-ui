@@ -264,6 +264,7 @@ function showPreviewError(item) {
 
 async function openViewer(item, opener) {
     try {
+        await reviewFile(item);
         await loadVariants(item);
         item.hasBeenVisible = true;
         item.isVisible = true;
@@ -280,6 +281,12 @@ async function openViewer(item, opener) {
     }
     selectMedia(item);
     viewerClose.focus();
+}
+
+async function reviewFile(item) {
+    await fetch(address(`/api/files/${item.id}`), {
+        method: "PATCH"
+    });
 }
 
 function renderViewer(item) {
