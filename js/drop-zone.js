@@ -34,13 +34,11 @@ export function initDropZone() {
         document.body.classList.remove('is-dragging');
         dropZone.classList.remove('is-dragover');
 
-        await uploadFiles(e.dataTransfer.files);
-        await loadImages();
+        await uploadFiles(e.dataTransfer.files, loadImages);
     });
 
     fileInput.addEventListener('change', async () => {
-        await uploadFiles(fileInput.files);
-        await loadImages();
+        await uploadFiles(fileInput.files, loadImages);
         fileInput.value = '';
     });
 }

@@ -2,7 +2,7 @@ import { address } from "./address.js";
 
 const ACCEPTED = ["image/", "video/"];
 
-export async function uploadFiles(files) {
+export async function uploadFiles(files, onUploadSuccess) {
     const all = [...files];
     const accepted = all.filter((file) =>
         ACCEPTED.some((prefix) => file.type.startsWith(prefix)),
@@ -39,7 +39,10 @@ export async function uploadFiles(files) {
             console.log("Upload successful:", result);
         } catch (error) {
             console.error(`Error uploading file ${file.name}:`, error);
+            continue;
         }
+
+        await onUploadSuccess?.();
     }
 
     return uploads;
