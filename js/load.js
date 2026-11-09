@@ -83,6 +83,16 @@ function makeShell(item) {
         card.classList.add("is-favorite");
     }
 
+    if (item.wasReviewed === false) {
+        const reviewIndicator = document.createElement("span");
+        reviewIndicator.className = "review-indicator";
+        reviewIndicator.textContent = "*";
+        reviewIndicator.setAttribute("role", "img");
+        reviewIndicator.setAttribute("aria-label", "Not reviewed");
+        reviewIndicator.title = "Not reviewed";
+        card.append(reviewIndicator);
+    }
+
     card.addEventListener("click", () => openViewer(item, card));
 
     return card;
@@ -170,16 +180,6 @@ function updatePreview(item, isVisible) {
     let preview;
     item.card.classList.remove("is-unloaded", "is-error");
     item.card.classList.add("is-loading");
-
-    if (item.wasReviewed === false) {
-        const reviewIndicator = document.createElement("span");
-        reviewIndicator.className = "review-indicator";
-        reviewIndicator.textContent = "*";
-        reviewIndicator.setAttribute("role", "img");
-        reviewIndicator.setAttribute("aria-label", "Not reviewed");
-        reviewIndicator.title = "Not reviewed";
-        card.append(reviewIndicator);
-    }
 
     item.card.replaceChildren(loadingIcon());
     if (variant.mime.startsWith("video/")) {
