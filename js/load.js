@@ -123,6 +123,9 @@ function loadVariants(item) {
         if (!Array.isArray(files)) {
             throw new Error(`Invalid files response for ${item.id}`);
         }
+        if (!files.some(file => file.kind === "LOW_RES")) {
+            throw new Error(`No LOW_RES variant found for ${item.id}`);
+        }
 
         item.variants = files;
         item.isVideo = files.some(file => file.mime.startsWith("video/"));
@@ -137,23 +140,9 @@ function loadVariants(item) {
 }
 
 function getPreviewVariant(item, isVisible) {
+    const lowRes = item.variants.find(file => file.kind === "LOW_RES");
     const thumbnail = item.variants.find(file => file.kind === "THUMBNAIL");
-    const original = item.variants.find(file => file.kind === "ORIGINAL");
-    const isVideo = item.isVideo ?? ((original || thumbnail)?.mime.startsWith("video/") ?? false);
-
-    if (isVideo) {
-        if (!isVisible) {
-            return thumbnail && !thumbnail.mime.startsWith("video/") ? thumbnail : null;
-        }
-
-        return [thumbnail, original].find(file => file?.mime.startsWith("video/")) ?? null;
-    }
-
-    if (isVisible) {
-        return original && !original.mime.startsWith("video/") ? original : thumbnail;
-    }
-
-    return thumbnail && !thumbnail.mime.startsWith("video/") ? thumbnail : null;
+    return isVisible ? thumbnail ?? null : lowRes ?? null;
 }
 
 function updatePreview(item, isVisible) {
