@@ -79,11 +79,11 @@ function makeShell(item) {
     card.type = "button";
     card.classList.add("is-unloaded");
     itemsByCard.set(card, item);
-    if (item.isFavorite) {
+    if (item.favorite) {
         card.classList.add("is-favorite");
     }
 
-    if (item.wasReviewed === false) {
+    if (item.reviewed === false) {
         const reviewIndicator = document.createElement("span");
         reviewIndicator.className = "review-indicator";
         reviewIndicator.textContent = "*";
@@ -343,14 +343,14 @@ function selectMediaNext() {
 
 function toggleFavorite() {
     if (verifyBounds(selectedItem)) {
-        if (selectedItem["isFavorite"]) {
+        if (selectedItem["favorite"]) {
             notFavorite(selectedItem);
         } else {
             makeFavorite(selectedItem);
         }
         fetch(
             address(`/api/files/${selectedItem["id"]}`),
-            favorite(selectedItem["isFavorite"])
+            favorite(selectedItem["favorite"])
         )
         .then(r => {
             console.log(r)
@@ -363,12 +363,12 @@ function toggleFavorite() {
 
 function makeFavorite(item) {
     item["card"].classList.add("is-favorite");
-    item["isFavorite"] = true;
+    item["favorite"] = true;
 }
 
 function notFavorite(item) {
     item["card"].classList.remove("is-favorite");
-    item["isFavorite"] = false;
+    item["favorite"] = false;
 }
 
 async function remove() {
