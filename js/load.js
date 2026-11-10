@@ -1,20 +1,10 @@
 import { address } from "./address.js";
-import {post, del, favorite} from "./fetchUtils.js";
+import {post} from "./fetchUtils.js";
+import { initViewer } from "./viewer.js";
 
 const gallery = document.getElementById('gallery');
-const mediaDialog = document.getElementById('media-dialog');
-const viewerStage = document.getElementById("viewer-stage");
-const viewerData = document.getElementById("viewer-data");
-const viewerThumbnails = document.getElementById("viewer-thumbnails");
-const viewerClose = document.getElementById("viewer-close");
-const viewerPrevious = document.getElementById("viewer-previous");
-const viewerNext = document.getElementById("viewer-next");
-const viewerDelete = document.getElementById("viewer-delete");
-const viewerFavorite = document.getElementById("viewer-favorite");
 
 let items;
-let selectedItem = null;
-let viewerOpener = null;
 let previewObserver;
 const itemsByCard = new WeakMap();
 
@@ -251,164 +241,9 @@ function showPreviewError(item) {
     item.card.setAttribute("aria-label", `Preview unavailable for ${item.id}`);
 }
 
-async function openViewer(item, opener) {
-    try {
-        await reviewFile(item);
-        await loadVariants(item);
-        item.hasBeenVisible = true;
-        item.isVisible = true;
-        updatePreview(item, true);
-    } catch (error) {
-        console.error(`Error opening media ${item.id}:`, error);
-        showPreviewError(item);
-        return;
-    }
-
-    if (!mediaDialog.open) {
-        viewerOpener = opener;
-        mediaDialog.showModal();
-    }
-    selectMedia(item);
-    viewerClose.focus();
-}
-
-async function reviewFile(item) {
-    await fetch(address(`/api/files/${item.id}`), {
-        method: "PATCH"
-    });
-}
-
-function renderViewer(item) {
-    if (!item) { return; }
-    
-    const og = item.variants.find(file => file.kind === "ORIGINAL");
-    if (!og) {
-        console.error(`No viewable media found for ${item.id}`);
-        return;
-    }
-    selectedItem = item;
-
-    if (og.mime.startsWith("video/")) {
-        const media = document.createElement("video");
-        media.className = "viewer-media";
-        media.src = address(`/api/files/${og.id}/content`);
-        media.controls = true;
-        media.preload = "metadata";
-        media.muted = false;
-        media.autoplay = false;
-
-        viewerStage.replaceChildren(media);
-    } else {
-        const media = document.createElement("img");
-        media.className = "viewer-media";
-        media.src = address(`/api/files/${og.id}/content`);
-        media.decoding = "async";
-
-        viewerStage.replaceChildren(media);
-    }
-}
-
-function closeViewer() {
-    if (mediaDialog.open) {
-        mediaDialog.close();
-        selectedItem = null;
-        viewerOpener?.focus();
-        viewerOpener = null;
-    }
-}
-
-function verifyBounds(item) {
-    return item != null && items.includes(item);
-}
-
-function selectMedia(item) {
-    if (verifyBounds(item)) {
-        renderViewer(item);
-    }
-}
-
-function selectMediaPrevious() {
-    const currentIndex = items.indexOf(selectedItem);
-    if (currentIndex > 0) {
-        selectMedia(items[currentIndex - 1]);
-    }
-}
-
-function selectMediaNext() {
-    const currentIndex = items.indexOf(selectedItem);
-    if (currentIndex !== -1 && currentIndex < items.length - 1) {
-        selectMedia(items[currentIndex + 1]);
-    }
-}
-
-function toggleFavorite() {
-    if (verifyBounds(selectedItem)) {
-        if (selectedItem["favorite"]) {
-            notFavorite(selectedItem);
-        } else {
-            makeFavorite(selectedItem);
-        }
-        fetch(
-            address(`/api/files/${selectedItem["id"]}`),
-            favorite(selectedItem["favorite"])
-        )
-        .then(r => {
-            console.log(r)
-        })
-        .catch(e => {
-            console.error(e);
-        })
-    }
-}
-
-function makeFavorite(item) {
-    item["card"].classList.add("is-favorite");
-    item["favorite"] = true;
-}
-
-function notFavorite(item) {
-    item["card"].classList.remove("is-favorite");
-    item["favorite"] = false;
-}
-
-async function remove() {
-    function undoRemoving(data, nextNeighbor, lastIndex) {
-        // Reinsert elements
-        gallery.insertBefore(data["card"], nextNeighbor);
-        items.splice(lastIndex, 0, data);
-    }
-
-    if (verifyBounds(selectedItem)) {
-        const data = selectedItem;
-
-        const lastIndex = items.indexOf(data);
-        const nextNeighbor = data["card"].nextSibling;
-
-        gallery.removeChild(data["card"]);
-        items.splice(lastIndex, 1); // remove item
-        closeViewer();
-
-        fetch(
-            address(`/api/files/${data["id"]}`),
-            del()
-        )
-            .then(r => {
-                if (r.status === 404) {
-                    console.warn("Already deleted");
-                } else if (!r.ok) {
-                    undoRemoving(data, nextNeighbor, lastIndex);
-                    throw new Error("Delete failed");
-                }
-            })
-            .catch(error => {
-                console.error("Failed to delete, restoring item:", error);
-                undoRemoving(data, nextNeighbor, lastIndex);
-            });
-    }
-}
-
-viewerClose.addEventListener("click", closeViewer);
-viewerPrevious.addEventListener("click", selectMediaPrevious);
-viewerNext.addEventListener("click", selectMediaNext);
-viewerFavorite.addEventListener("click", toggleFavorite);
-viewerDelete.addEventListener("click", remove);
+const openViewer = initViewer({
+    getItems: () => items,
+    loadVariants,
+    updatePreview,
+    showPreviewError
+});
